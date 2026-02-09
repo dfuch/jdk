@@ -46,7 +46,7 @@ class ExchangeImpl {
     Headers reqHdrs, rspHdrs;
     Request req;
     String method;
-    boolean writefinished;
+    private boolean writefinished;
     URI uri;
     HttpConnection connection;
     long reqContentLen;
@@ -87,8 +87,8 @@ class ExchangeImpl {
     HttpPrincipal principal;
     ServerImpl server;
 
-    final AtomicBoolean ended = new AtomicBoolean();
-    final AtomicBoolean finished = new AtomicBoolean();
+    private final AtomicBoolean ended = new AtomicBoolean();
+    private final AtomicBoolean finished = new AtomicBoolean();
 
     ExchangeImpl(
         String m, URI u, Request req, long len, HttpConnection connection
@@ -110,7 +110,11 @@ class ExchangeImpl {
         server.startExchange();
     }
 
-    public int endExchange() {
+    synchronized boolean writefinished() {
+        return writefinished;
+    }
+
+    int endExchange() {
         // only call server.endExchange(); once per exchange
         if (ended.compareAndSet(false, true)) {
             return server.endExchange();
@@ -118,19 +122,15 @@ class ExchangeImpl {
         return server.getExchangeCount();
     }
 
-    public void postWriteFinished() {
-        // only post one of WriteFinished / ExchangeFinished once
-        // per exchange
+    void postExchangeFinished(boolean writefinished) {
+        // only post ExchangeFinished once per exchange
         if (finished.compareAndSet(false, true)) {
-            Event e = new Event.WriteFinished(this);
-            getHttpContext().getServerImpl().addEvent(e);
-        }
-    }
-
-    public void postExchangeFinished() {
-        // only post one of WriteFinished / ExchangeFinished once
-        // per exchange
-        if (finished.compareAndSet(false, true)) {
+            if (writefinished) {
+                synchronized (this) {
+                    assert this.writefinished == false;
+                    this.writefinished = true;
+                }
+            }
             Event e = new Event.ExchangeFinished(this);
             getHttpContext().getServerImpl().addEvent(e);
         }
@@ -187,7 +187,7 @@ class ExchangeImpl {
         } catch (IOException e) {
             connection.close();
         } finally {
-            postExchangeFinished();
+            postExchangeFinished(false);
         }
     }
 

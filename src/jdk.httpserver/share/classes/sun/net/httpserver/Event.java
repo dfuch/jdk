@@ -47,17 +47,6 @@ abstract sealed class Event {
     }
 
     /**
-     * Event indicating that writing is finished for a given exchange.
-     */
-    static final class WriteFinished extends Event {
-        WriteFinished(ExchangeImpl t) {
-            super(Objects.requireNonNull(t));
-            assert !t.writefinished;
-            t.writefinished = true;
-        }
-    }
-
-    /**
      * Event indicating that the exchange is finished,
      * without having necessarily read the complete
      * request or sent the complete response.

@@ -419,7 +419,8 @@ class ServerImpl {
             // Stopping marking the state as finished if stop is requested,
             // termination is in progress and exchange count is 0
             if (r instanceof Event.StopRequested) {
-                logger.log(Level.TRACE, "Handling Stop Requested Event");
+                logger.log(Level.TRACE, "Handling {0} event",
+                        r.getClass().getSimpleName());
 
                 // checking if terminating is set to true
                 final boolean terminatingCopy = terminating;
@@ -437,9 +438,10 @@ class ServerImpl {
             HttpConnection c = t.getConnection();
 
             try {
-                if (r instanceof Event.WriteFinished || r instanceof Event.ExchangeFinished) {
+                if (r instanceof Event.ExchangeFinished) {
 
-                    logger.log(Level.TRACE, "Write Finished");
+                    logger.log(Level.TRACE, "Handling {0} event",
+                                r.getClass().getSimpleName());
                     int exchanges = t.endExchange();
                     if (terminating && exchanges == 0 && reqConnections.isEmpty()) {
                         finishedLatch.countDown();
@@ -905,14 +907,14 @@ class ServerImpl {
                 } catch (Throwable t) {
                     // release the exchange.
                     logger.log(Level.TRACE, "ServerImpl.Exchange", t);
-                    if (!tx.writefinished) {
+                    if (!tx.writefinished()) {
                         closeConnection(connection);
                     }
-                    tx.postExchangeFinished();
+                    tx.postExchangeFinished(false);
                 }
             } catch (Exception e) {
                 logger.log(Level.TRACE, "ServerImpl.Exchange", e);
-                if (tx == null || !tx.writefinished) {
+                if (tx == null || !tx.writefinished()) {
                     closeConnection(connection);
                 }
             } catch (Throwable t) {

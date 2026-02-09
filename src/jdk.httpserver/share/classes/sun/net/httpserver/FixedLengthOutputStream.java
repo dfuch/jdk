@@ -94,7 +94,7 @@ class FixedLengthOutputStream extends FilterOutputStream
                 is.close();
             } catch (IOException e) {}
         }
-        t.postWriteFinished();
+        t.postExchangeFinished(true);
     }
 
     // flush is a pass-through

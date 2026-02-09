@@ -36,52 +36,76 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.SocketException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
+import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
 import jdk.test.lib.Utils;
 import static com.sun.net.httpserver.HttpExchange.RSPBODY_CHUNKED;
 
 public class FailAndStopTest implements HttpHandler {
+    // Keep that logger in a static field to make sure it doesn't
+    // get GC'ed and recreated before the HttpServer is initialized.
     private static final Logger LOGGER = Logger.getLogger("com.sun.net.httpserver");
     private static final String BODY = "OK";
 
     static enum TestCases {
-        FAILNOW("failNow", true),
-        ASSERTNOW("assertNow", true),
-        RESPANDFAIL("failAfterResponseStatus", true),
-        RESPANDASSERT("failAfterResponseStatus", true),
-        CLOSEAFTERRESP("closeExchangeAfterResponseStatus", true),
-        BODYANDFAIL("failAfterResponseStatus", true),
-        BODYANDASSERT("assertAfterResponseStatus", true),
-        CLOSEBEFOREOS("closeExchangeBeforeOS", false),
-        CLOSEANDRETURN("closeAndReturn", false),
-        CLOSEANDFAIL("closeAndFail", false),
-        CLOSEANDASSERT("closeAndAssert", false);
+        FAILNOW("failNow", TestCases::shouldAlwaysFail),
+        ASSERTNOW("assertNow", TestCases::shouldAlwaysFail),
+        RESPANDFAIL("failAfterResponseStatus", TestCases::shouldFailExceptForHead),
+        RESPANDASSERT("assertAfterResponseStatus", TestCases::shouldFailExceptForHead),
+        CLOSEAFTERRESP("closeExchangeAfterResponseStatus", TestCases::shouldFailExceptForHead),
+        BODYANDFAIL("failAfterBody", TestCases::shouldFailExceptForHeadOrHttps),
+        BODYANDASSERT("assertAfterBody", TestCases::shouldFailExceptForHeadOrHttps),
+        CLOSEBEFOREOS("closeExchangeBeforeOS", TestCases::shouldNeverFail),
+        CLOSEANDRETURN("closeAndReturn", TestCases::shouldNeverFail),
+        CLOSEANDFAIL("closeAndFail", TestCases::shouldNeverFail),
+        CLOSEANDASSERT("closeAndAssert", TestCases::shouldNeverFail);
 
         private final String query;
-        private final boolean shouldFail;
-        TestCases(String query, boolean shouldFail) {
+        private BiPredicate<String,String> shouldFail;
+        TestCases(String query, BiPredicate<String,String> shouldFail) {
             this.query = query;
             this.shouldFail = shouldFail;
         }
-        boolean shouldFail(String method) {
+        boolean shouldFail(String scheme, String method) {
             // in case of HEAD method the client should not
             // fail if we throw after sending response headers
-            return switch (this) {
-                case FAILNOW -> shouldFail;
-                case ASSERTNOW -> shouldFail;
-                default -> shouldFail && !"HEAD".equals(method);
-            };
+            return shouldFail.test(scheme, method);
         }
+        private static boolean shouldAlwaysFail(String scheme, String method) {
+            return true;
+        }
+        private static boolean shouldNeverFail(String scheme, String method) {
+            return false;
+        }
+        private static boolean shouldFailExceptForHead(String scheme, String method) {
+            return !"HEAD".equals(method);
+        }
+        private static boolean shouldFailExceptForHeadOrHttps(String scheme, String method) {
+            // When using https, the buffered response bytes may be sent
+            // when the connection is closed, in which case the full body
+            // will be correctly received, and the client connection
+            // will not fail. With plain http, the bytes are not sent and
+            // the client fails with premature end of file.
+            return !"HEAD".equals(method) && !"https".equalsIgnoreCase(scheme);
+        }
+
     }
 
     @Override
@@ -154,23 +178,70 @@ public class FailAndStopTest implements HttpHandler {
         }
     }
 
+    private static void enableHttpServerLogging() {
+        // set HttpServer's logger to ALL
+        LOGGER.setLevel(Level.ALL);
+        // get the root logger, get its first handler (by default
+        // it's a ConsoleHandler), and set its level to ALL (by
+        // default its level is INFO).
+        Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
+    }
+
 
     public static void main(String[] args) throws Exception {
-        LOGGER.setLevel(Level.ALL);
-        Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
+
+        enableHttpServerLogging();
+
         // test with GET
         for (var test : TestCases.values()) {
-            test(test, Optional.empty());
+            test(test, Optional.empty(), "http");
+            test(test, Optional.empty(), "https");
         }
         // test with HEAD
         for (var test : TestCases.values()) {
-            test(test, Optional.of("HEAD"));
+            test(test, Optional.of("HEAD"), "http");
+            test(test, Optional.of("HEAD"), "https");
         }
     }
-    private static void test(TestCases test, Optional<String> method) throws Exception {
 
-        HttpServer server = HttpServer.create(
-                new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    private static SSLContext initSSLContext(boolean secure) {
+        SSLContext context = secure ? SimpleSSLContext.findSSLContext() : null;
+        if (secure) {
+            SSLContext.setDefault(context);
+        }
+        return context;
+    }
+
+    private static HttpServer createHttpServer(SSLContext context) throws IOException {
+        var address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        if (context != null) {
+            var server = HttpsServer.create(address, 0);
+            server.setHttpsConfigurator(new HttpsConfigurator(context));
+            return server;
+        } else {
+            return HttpServer.create(address, 0);
+        }
+    }
+
+    private static HttpURLConnection createConnection(URL url, boolean secure)
+            throws IOException {
+        HttpURLConnection urlc = (HttpURLConnection) url.openConnection(Proxy.NO_PROXY);
+        if (secure) {
+            ((HttpsURLConnection)urlc).setHostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String hostname, SSLSession session) {
+                    return true;
+                }
+            });
+        }
+        return urlc;
+    }
+
+    private static void test(TestCases test, Optional<String> method, String scheme)
+            throws Exception {
+        boolean secure = "https".equalsIgnoreCase(scheme);
+        SSLContext context = initSSLContext(secure);
+        HttpServer server = createHttpServer(context);
 
         System.out.println("Test: " + method.orElse("GET") + " " + test.query);
         System.out.println("Server listening at: " + server.getAddress());
@@ -179,40 +250,51 @@ public class FailAndStopTest implements HttpHandler {
             server.start();
 
             URL url = URIBuilder.newBuilder()
-                    .scheme("http")
+                    .scheme(scheme)
                     .loopback()
                     .port(server.getAddress().getPort())
                     .path("/FailAndStopTest/")
                     .query(test.query)
                     .toURLUnchecked();
-
-            HttpURLConnection urlc = (HttpURLConnection) url.openConnection(Proxy.NO_PROXY);
+            System.out.println("Connecting to: " + url);
+            HttpURLConnection urlc = createConnection(url, secure);
             if (method.isPresent()) urlc.setRequestMethod(method.get());
             try {
                 System.out.println("Client: Response code received: " + urlc.getResponseCode());
                 InputStream is = urlc.getInputStream();
                 String body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 is.close();
-                if (test.shouldFail(urlc.getRequestMethod())) {
-                    throw new AssertionError("%s: test did not fail"
-                            .formatted(test.query));
+                System.out.printf("Client: read body: \"%s\"%n", body);
+                if (test.shouldFail(scheme, urlc.getRequestMethod())) {
+                    throw new AssertionError(test.query + ": test did not fail");
                 }
-                System.out.println("Client: read body: \"%s\"".formatted(body));
                 if (!method.orElse("GET").equals("HEAD")) {
                     if (!BODY.equals(body)) {
-                        throw new AssertionError("\"%s\" != \"%s\""
-                                .formatted(body, BODY));
+                        throw new AssertionError(
+                                String.format("\"%s\" != \"%s\"", body, BODY));
                     }
                 } else if (!body.isEmpty()) {
                     throw new AssertionError("Body is not empty: " + body);
                 }
-            } catch (SocketException so) {
-                if (test.shouldFail(urlc.getRequestMethod())) {
+            } catch (IOException so) {
+                if (test.shouldFail(scheme, urlc.getRequestMethod())) {
                     // expected
                     System.out.println(test.query + ": Got expected exception: " + so);
+                } else if (!test.shouldFail("http", urlc.getRequestMethod())) {
+                    // When using https, the buffered response bytes may be sent
+                    // when the connection is closed, in which case the full body
+                    // will be correctly received, and the client connection
+                    // will not fail. With plain http, the bytes are not sent and
+                    // the client fails with premature end of file.
+                    // So only fail here if the test should not fail with plain
+                    // http - we want to accept possible exception for https...
+                    throw new AssertionError(
+                                String.format("%s: test failed with %s", test.query, so), so);
                 } else {
-                    throw new AssertionError("%s: test failed with %s"
-                            .formatted(test.query, so), so);
+                    System.out.printf("%s: WARNING: unexpected exception: %s%n", test.query, so);
+                    // should only happen in those two cases:
+                    assert secure && !"HEAD".equals(method) &&
+                            (test == TestCases.BODYANDFAIL || test == TestCases.BODYANDASSERT);
                 }
             }
         } finally {

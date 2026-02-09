@@ -154,7 +154,7 @@ class ChunkedOutputStream extends FilterOutputStream
         } finally {
             closed = true;
         }
-        t.postWriteFinished();
+        t.postExchangeFinished(true);
     }
 
     public void flush() throws IOException {
