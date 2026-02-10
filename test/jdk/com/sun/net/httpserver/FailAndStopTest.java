@@ -27,7 +27,7 @@
  * @summary HttpServer.stop() blocks indefinitely if handler throws
  * @modules jdk.httpserver java.logging
  * @library /test/lib
- * @run main/othervm FailAndStopTest
+ * @run main/othervm ${test.main.class}
  */
 
 import java.io.IOException;
