@@ -87,7 +87,17 @@ class ExchangeImpl {
     HttpPrincipal principal;
     ServerImpl server;
 
+    // Used to control that ServerImpl::endExchange is called
+    // exactly once for this exchange. ServerImpl::endExchange decrements
+    // the refcount that was incremented by calling ServerImpl::startExchange
+    // in this ExchangeImpl constructor.
     private final AtomicBoolean ended = new AtomicBoolean();
+
+    // Used to ensure that the Event.ExchangeFinished is posted only
+    // once for this exchange. The Event.ExchangeFinished is what will
+    // eventually cause the ServerImpl::finishedLatch to be triggered,
+    // once the number of active exchanges reaches 0 and ServerImpl::stop
+    // has been requested.
     private final AtomicBoolean finished = new AtomicBoolean();
 
     ExchangeImpl(
@@ -110,10 +120,25 @@ class ExchangeImpl {
         server.startExchange();
     }
 
+    /**
+     * When true, writefinished indicates that all bytes expected
+     * by the client have been written to the response body
+     * outputstream, and that the response body outputstream has
+     * been closed. When all bytes have also been pulled from
+     * the request body input stream, this makes it possible to
+     * reuse the connection for the next request.
+     */
     synchronized boolean writefinished() {
         return writefinished;
     }
 
+    /**
+     * Calls ServerImpl::endExchange if not already called for this
+     * exchange. ServerImpl::endExchange must be called exactly once
+     * per exchange, and this method ensures that it is not called
+     * more than once for this exchange.
+     * @return the new (or current) value of the exchange count.
+     */
     int endExchange() {
         // only call server.endExchange(); once per exchange
         if (ended.compareAndSet(false, true)) {
@@ -122,6 +147,14 @@ class ExchangeImpl {
         return server.getExchangeCount();
     }
 
+    /**
+     * Posts the ExchangeFinished event if not already posted.
+     * If `writefinished` is true, marks the exchange as {@link
+     * #writefinished()} so that the connection can be reused.
+     * @param writefinished whether all bytes expected by the
+     *                      client have been writen out to the
+     *                      response body output stream.
+     */
     void postExchangeFinished(boolean writefinished) {
         // only post ExchangeFinished once per exchange
         if (finished.compareAndSet(false, true)) {
