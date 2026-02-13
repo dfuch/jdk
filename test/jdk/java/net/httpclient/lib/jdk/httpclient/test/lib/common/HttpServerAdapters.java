@@ -998,7 +998,7 @@ public interface HttpServerAdapters {
             is.close();
             File f = new File(docroot, path);
             if (!f.exists()) {
-                notfound (t, path);
+                notfound(t, path);
                 return;
             }
 
