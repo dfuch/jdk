@@ -272,17 +272,6 @@ public interface HttpServerAdapters {
         }
 
         /**
-         * {@return the response length to pass to {@link #sendResponseHeaders(int, long)}
-         * if the response is chunked}
-         * @param bytes the response length
-         * @implSpec
-         * This method always return {@link #RSPBODY_CHUNKED}
-         */
-        public static long chunkedRsp(long bytes) {
-            return RSPBODY_CHUNKED;
-        }
-
-        /**
          * {@return the response length to pass to {@link #sendResponseHeaders(int, long)}}
          * This is the response length when `chunked` is false, and
          * {@link #RSPBODY_CHUNKED} otherwise.
@@ -290,7 +279,7 @@ public interface HttpServerAdapters {
          * @param chunked  Whether the response should be chunked
          */
         public static long responseLength(long length, boolean chunked) {
-            return chunked ? chunkedRsp(length) : fixedRsp(length);
+            return chunked ? HttpTestExchange.RSPBODY_CHUNKED : fixedRsp(length);
         }
 
         /**
