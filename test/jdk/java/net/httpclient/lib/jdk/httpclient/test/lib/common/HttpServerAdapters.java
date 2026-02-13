@@ -994,7 +994,7 @@ public interface HttpServerAdapters {
             String path = uri.getPath();
 
             int x = 0;
-            while (is.read () != -1) x++;
+            while (is.read() != -1) x++;
             is.close();
             File f = new File (docroot, path);
             if (!f.exists()) {
