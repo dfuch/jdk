@@ -1075,7 +1075,7 @@ public interface HttpServerAdapters {
             OutputStream os = t.getResponseBody();
             String s = "<h2>File not found</h2>";
             s = s + p + "<p>";
-            os.write (s.getBytes());
+            os.write(s.getBytes());
             os.close();
             t.close();
         }
