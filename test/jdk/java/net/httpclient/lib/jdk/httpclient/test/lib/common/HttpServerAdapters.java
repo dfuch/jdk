@@ -258,7 +258,7 @@ public interface HttpServerAdapters {
         public static final int RSPBODY_EMPTY = 0;
         /**
          * This constant can be passed to {@link #sendResponseHeaders(int, long)}
-         * to indicates that the response will be chunked.
+         * to indicate that the response will be chunked.
          */
         public static final int RSPBODY_CHUNKED = -1;
 
