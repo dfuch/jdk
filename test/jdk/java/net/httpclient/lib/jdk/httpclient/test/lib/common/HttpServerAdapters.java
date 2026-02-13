@@ -1027,7 +1027,7 @@ public interface HttpServerAdapters {
                 t.sendResponseHeaders(200, HttpTestExchange.RSPBODY_CHUNKED);
                 String[] list = f.list();
                 try (final OutputStream os = t.getResponseBody();
-                     final PrintStream p = new PrintStream (os)) {
+                     final PrintStream p = new PrintStream(os)) {
                     p.println("<h2>Directory listing for: " + path + "</h2>");
                     p.println("<ul>");
                     for (int i = 0; i < list.length; i++) {
