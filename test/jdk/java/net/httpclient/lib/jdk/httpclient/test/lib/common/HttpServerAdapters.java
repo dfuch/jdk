@@ -1004,7 +1004,7 @@ public interface HttpServerAdapters {
 
             String method = t.getRequestMethod();
             if (method.equals("HEAD")) {
-                rspHeaders.addHeader("Content-Length", Long.toString (f.length()));
+                rspHeaders.addHeader("Content-Length", Long.toString(f.length()));
                 t.sendResponseHeaders(200, HttpTestExchange.RSPBODY_EMPTY);
                 t.close();
             } else if (!method.equals("GET")) {
