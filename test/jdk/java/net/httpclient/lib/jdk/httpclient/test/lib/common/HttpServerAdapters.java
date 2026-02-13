@@ -1044,7 +1044,7 @@ public interface HttpServerAdapters {
                      final FileInputStream fis = new FileInputStream (f)) {
                     byte[] buf = new byte [16 * 1024];
                     int len;
-                    while ((len=fis.read (buf)) != -1) {
+                    while ((len=fis.read(buf)) != -1) {
                         os.write (buf, 0, len);
                         count += len;
                     }
