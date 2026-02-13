@@ -996,7 +996,7 @@ public interface HttpServerAdapters {
             int x = 0;
             while (is.read() != -1) x++;
             is.close();
-            File f = new File (docroot, path);
+            File f = new File(docroot, path);
             if (!f.exists()) {
                 notfound (t, path);
                 return;
