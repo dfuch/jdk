@@ -253,7 +253,7 @@ public interface HttpServerAdapters {
     public static abstract class HttpTestExchange implements AutoCloseable {
         /**
          * This constant can be passed to {@link #sendResponseHeaders(int, long)}
-         * to indicates an empty response.
+         * to indicate an empty response.
          */
         public static final int RSPBODY_EMPTY = 0;
         /**
