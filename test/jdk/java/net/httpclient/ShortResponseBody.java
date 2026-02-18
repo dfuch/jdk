@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,24 +36,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.test.lib.net.SimpleSSLContext;
-import org.testng.ITestContext;
-import org.testng.ITestResult;
-import org.testng.SkipException;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -64,10 +56,24 @@ import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.stream.Collectors.toList;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.extension.TestWatcher;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class ShortResponseBody {
 
     Server closeImmediatelyServer;
@@ -108,20 +114,48 @@ public abstract class ShortResponseBody {
         }
     };
     final ExecutorService service = Executors.newCachedThreadPool(factory);
-
-    final AtomicReference<SkipException> skiptests = new AtomicReference<>();
-    void checkSkip() {
-        var skip = skiptests.get();
-        if (skip != null) throw skip;
-    }
-    static String name(ITestResult result) {
-        var params = result.getParameters();
-        return result.getName()
-                + (params == null ? "()" : Arrays.toString(result.getParameters()));
+    static final ConcurrentMap<String, Throwable> FAILURES = new ConcurrentHashMap<>();
+    static final long start = System.nanoTime();
+    public static String now() {
+        long now = System.nanoTime() - start;
+        long secs = now / 1000_000_000;
+        long mill = (now % 1000_000_000) / 1000_000;
+        long nan = now % 1000_000;
+        return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    @BeforeMethod
-    void beforeMethod(ITestContext context) {
+    private static boolean stopAfterFirstFailure() {
+        return Boolean.getBoolean("jdk.internal.httpclient.debug");
+    }
+
+    static final class TestStopper implements TestWatcher, BeforeEachCallback {
+        final AtomicReference<String> failed = new AtomicReference<>();
+        TestStopper() { }
+        @Override
+        public void testFailed(ExtensionContext context, Throwable cause) {
+            if (stopAfterFirstFailure()) {
+                String msg = "Aborting due to: " + cause;
+                failed.compareAndSet(null, msg);
+                FAILURES.putIfAbsent(context.getDisplayName(), cause);
+                System.out.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
+                        now(), context.getDisplayName(), cause);
+                System.err.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
+                        now(), context.getDisplayName(), cause);
+            }
+        }
+
+        @Override
+        public void beforeEach(ExtensionContext context) {
+            String msg = failed.get();
+            Assumptions.assumeTrue(msg == null, msg);
+        }
+    }
+
+    @RegisterExtension
+    static final TestStopper stopper = new TestStopper();
+
+    @BeforeEach
+    void beforeMethod() {
         if (client == null || numberOfRequests == REQUESTS_PER_CLIENT) {
             numberOfRequests = 0;
             out.println("--- new client");
@@ -134,22 +168,12 @@ public abstract class ShortResponseBody {
             }
         }
         numberOfRequests++;
-        if (context.getFailedTests().size() > 0) {
-            if (skiptests.get() == null) {
-                SkipException skip = new SkipException("some tests failed");
-                skip.setStackTrace(new StackTraceElement[0]);
-                skiptests.compareAndSet(null, skip);
-            }
-        }
     }
 
-    @AfterClass
-    static final void printFailedTests(ITestContext context) {
+    @AfterAll
+    static void printFailedTests() {
         out.println("\n=========================\n");
         try {
-            var FAILURES = context.getFailedTests().getAllResults().stream()
-                    .collect(Collectors.toMap(r -> name(r), ITestResult::getThrowable));
-
             if (FAILURES.isEmpty()) return;
             out.println("Failed tests: ");
             FAILURES.entrySet().forEach((e) -> {
@@ -162,7 +186,6 @@ public abstract class ShortResponseBody {
         }
     }
 
-    @DataProvider(name = "sanity")
     public Object[][] sanity() {
         return new Object[][]{
             { httpURIVarLen  + "?length=all" },
@@ -175,21 +198,21 @@ public abstract class ShortResponseBody {
         return url.replace("%reqnb%", String.valueOf(reqnb.incrementAndGet()));
     }
 
-    @Test(dataProvider = "sanity")
+    @ParameterizedTest
+    @MethodSource("sanity")
     void sanity(String url) throws Exception {
         url = uniqueURL(url);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         out.println("Request: " + request);
         HttpResponse<String> response = client.send(request, ofString());
         String body = response.body();
-        assertEquals(body, EXPECTED_RESPONSE_BODY);
+        assertEquals(EXPECTED_RESPONSE_BODY, body);
         client.sendAsync(request, ofString())
                 .thenApply(resp -> resp.body())
-                .thenAccept(b -> assertEquals(b, EXPECTED_RESPONSE_BODY))
+                .thenAccept(b -> assertEquals(EXPECTED_RESPONSE_BODY, b))
                 .join();
     }
 
-    @DataProvider(name = "sanityBadRequest")
     public Object[][] sanityBadRequest() {
         return new Object[][]{
                 { httpURIVarLen  }, // no query string
@@ -198,18 +221,18 @@ public abstract class ShortResponseBody {
         };
     }
 
-    @Test(dataProvider = "sanityBadRequest")
+    @ParameterizedTest
+    @MethodSource("sanityBadRequest")
     void sanityBadRequest(String url) throws Exception {
         url = uniqueURL(url);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         out.println("Request: " + request);
         HttpResponse<String> response = client.send(request, ofString());
-        assertEquals(response.statusCode(), 400);
-        assertEquals(response.body(), "");
+        assertEquals(400, response.statusCode());
+        assertEquals("", response.body());
     }
 
-    @DataProvider(name = "uris")
-    public Object[][] variants(ITestContext context) {
+    public Object[][] variants() {
         String[][] cases = new String[][] {
             // The length query string is the total number of bytes in the reply,
             // including headers, before the server closes the connection. The
@@ -267,13 +290,6 @@ public abstract class ShortResponseBody {
             { httpURIClsImed,  "no bytes"},
             { httpsURIClsImed, "no bytes"},
         };
-
-        if (context.getFailedTests().size() > 0) {
-            // Shorten the log output by preventing useless
-            // skip traces to be printed for subsequent methods
-            // if one of the previous @Test method has failed.
-            return new Object[0][];
-        }
 
         return cases;
     }
@@ -618,7 +634,7 @@ public abstract class ShortResponseBody {
         String response( ) { return RESPONSE; }
     }
 
-    /** A server that issues a, possibly-partial, chunked reply over SSL. */
+    /** A server that issues a possibly-partial, chunked reply over SSL. */
     static final class SSLVariableLengthServer extends PlainVariableLengthServer {
         SSLVariableLengthServer() throws IOException {
             super("SSLVariableLengthServer");
@@ -655,7 +671,7 @@ public abstract class ShortResponseBody {
                 + server.getPort();
     }
 
-    @BeforeTest
+    @BeforeAll
     public void setup() throws Exception {
         SSLContext.setDefault(sslContext);
 
@@ -682,7 +698,7 @@ public abstract class ShortResponseBody {
                 + "/http1/fixed/req=%reqnb%/baz";
     }
 
-    @AfterTest
+    @AfterAll
     public void teardown() throws Exception {
         closeImmediatelyServer.close();
         closeImmediatelyHttpsServer.close();
