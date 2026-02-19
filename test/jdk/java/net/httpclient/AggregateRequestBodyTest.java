@@ -85,9 +85,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -95,20 +93,19 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AggregateRequestBodyTest implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer http1TestServer;   // HTTP/1.1 ( http )
-    HttpTestServer https1TestServer;  // HTTPS/1.1 ( https  )
-    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    HttpTestServer http3TestServer;   // HTTP/3 ( h3 )
-    URI http1URI;
-    URI https1URI;
-    URI http2URI;
-    URI https2URI;
-    URI http3URI;
+    private static HttpTestServer http1TestServer;   // HTTP/1.1 ( http )
+    private static HttpTestServer https1TestServer;  // HTTPS/1.1 ( https  )
+    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3 )
+    private static URI http1URI;
+    private static URI https1URI;
+    private static URI http2URI;
+    private static URI https2URI;
+    private static URI http3URI;
 
     static final int RESPONSE_CODE = 200;
     static final int ITERATION_COUNT = 4;
@@ -128,8 +125,8 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -186,7 +183,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
     static final TestStopper stopper = new TestStopper();
 
     @AfterAll
-    static final void printFailedTests() {
+    static void printFailedTests() {
         out.println("\n=========================");
         try {
             out.printf("%n%sCreated %d servers and %d clients%n",
@@ -206,7 +203,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         }
     }
 
-    private URI[] uris() {
+    private static URI[] uris() {
         return new URI[] {
                 http1URI,
                 https1URI,
@@ -216,7 +213,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         };
     }
 
-    public Object[][] variants() {
+    public static Object[][] variants() {
         URI[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -284,7 +281,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         return s;
     }
 
-    Object[][] nulls() {
+    static Object[][] nulls() {
         return new Object[][] {
                 {"null array", null},
                 {"null element", strings((String)null)},
@@ -302,7 +299,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
                 .collect(Collectors.toList());
     }
 
-    Object[][] contentLengths() {
+    static Object[][] contentLengths() {
         return new Object[][] {
                 {-1, lengths(-1)},
                 {-42, lengths(-42)},
@@ -329,7 +326,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         };
     }
 
-    Object[][] negativeRequests() {
+    static Object[][] negativeRequests() {
         return new Object[][] {
                 {0L}, {-1L}, {-2L}, {Long.MIN_VALUE + 1L}, {Long.MIN_VALUE}
         };
@@ -845,7 +842,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
         System.out.println("test: DONE");
     }
 
-    private URI buildURI(String scheme, String path, int port) {
+    private static URI buildURI(String scheme, String path, int port) {
         return URIBuilder.newBuilder()
                 .scheme(scheme)
                 .loopback()
@@ -855,7 +852,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         HttpTestHandler handler = new HttpTestEchoHandler();
         http1TestServer = HttpTestServer.create(HTTP_1_1);
         http1TestServer.addHandler(handler, "/http1/echo/");
@@ -886,7 +883,7 @@ public class AggregateRequestBodyTest implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient.close();

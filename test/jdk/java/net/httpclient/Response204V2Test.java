@@ -66,8 +66,6 @@ import static java.net.http.HttpOption.H3_DISCOVERY;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -75,16 +73,15 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class Response204V2Test implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    String http2URI;
-    String https2URI;
-    String http3URI;
+    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    private static String http2URI;
+    private static String https2URI;
+    private static String http3URI;
 
     static final int RESPONSE_CODE = 204;
     static final int ITERATION_COUNT = 4;
@@ -103,8 +100,8 @@ public class Response204V2Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -181,7 +178,7 @@ public class Response204V2Test implements HttpServerAdapters {
         }
     }
 
-    private String[] uris() {
+    private static String[] uris() {
         return new String[] {
                 http3URI,
                 http2URI,
@@ -189,7 +186,7 @@ public class Response204V2Test implements HttpServerAdapters {
         };
     }
 
-    public Object[][] variants() {
+    public static Object[][] variants() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -228,23 +225,6 @@ public class Response204V2Test implements HttpServerAdapters {
         }
     }
 
-
-    static void checkStatus(int expected, int found) throws Exception {
-        if (expected != found) {
-            System.err.printf ("Test failed: wrong status code %d/%d\n",
-                expected, found);
-            throw new RuntimeException("Test failed");
-        }
-    }
-
-    static void checkStrings(String expected, String found) throws Exception {
-        if (!expected.equals(found)) {
-            System.err.printf ("Test failed: wrong string %s/%s\n",
-                expected, found);
-            throw new RuntimeException("Test failed");
-        }
-    }
-
     private HttpRequest.Builder newRequestBuilder(URI uri) {
         var builder = HttpRequest.newBuilder(uri);
         if (uri.getRawPath().contains("/http3/")) {
@@ -279,7 +259,7 @@ public class Response204V2Test implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         // HTTP/2
         HttpTestHandler handler204 = new Handler204();
 
@@ -302,7 +282,7 @@ public class Response204V2Test implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;

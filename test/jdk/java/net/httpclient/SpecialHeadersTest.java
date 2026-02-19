@@ -89,8 +89,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -98,20 +96,19 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SpecialHeadersTest implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    HttpTestServer httpsTestServer;        // HTTPS/1.1
-    HttpTestServer http2TestServer;        // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;       // HTTP/2 ( h2  )
-    HttpTestServer http3TestServer;        // HTTP/3
-    String httpURI;
-    String httpsURI;
-    String http2URI;
-    String https2URI;
-    String https3URI;
+    private static HttpTestServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
+    private static HttpTestServer httpsTestServer;        // HTTPS/1.1
+    private static HttpTestServer http2TestServer;        // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;       // HTTP/2 ( h2  )
+    private static HttpTestServer http3TestServer;        // HTTP/3
+    private static String httpURI;
+    private static String httpsURI;
+    private static String http2URI;
+    private static String https2URI;
+    private static String https3URI;
 
     static final String[][] headerNamesAndValues = new String[][]{
             {"User-Agent: <DEFAULT>"},
@@ -135,7 +132,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
             {"hoSt: mixed"}
     };
 
-    public Object[][] variants() {
+    public static Object[][] variants() {
         String prop = System.getProperty("jdk.httpclient.allowRestrictedHeaders");
         boolean hostTest = prop != null && prop.equalsIgnoreCase("host");
         final String[][] testInput = hostTest ? headerNamesAndValues1 : headerNamesAndValues;
@@ -178,8 +175,8 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -570,7 +567,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         out.println("--- Starting setup " + now());
 
         HttpTestHandler handler = new HttpUriStringHandler();
@@ -602,7 +599,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         out.println("\n--- Teardown " + now());
         HttpClient shared = sharedClient;
         String sharedClientName =

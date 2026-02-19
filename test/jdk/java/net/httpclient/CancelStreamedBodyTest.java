@@ -69,8 +69,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -78,20 +76,19 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class CancelStreamedBodyTest implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
-    HttpTestServer httpsTestServer;   // HTTPS/1.1
-    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    String httpURI;
-    String httpsURI;
-    String http2URI;
-    String https2URI;
-    String https3URI;
+    private static HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
+    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
+    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    private static String httpURI;
+    private static String httpsURI;
+    private static String http2URI;
+    private static String https2URI;
+    private static String https3URI;
 
     static final long SERVER_LATENCY = 75;
     static final int ITERATION_COUNT = 3;
@@ -111,8 +108,8 @@ public class CancelStreamedBodyTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -189,7 +186,7 @@ public class CancelStreamedBodyTest implements HttpServerAdapters {
         }
     }
 
-    private String[] uris() {
+    private static String[] uris() {
         return new String[] {
                 https3URI,
                 httpURI,
@@ -200,7 +197,7 @@ public class CancelStreamedBodyTest implements HttpServerAdapters {
     }
 
 
-    public Object[][] alltests() {
+    public static Object[][] alltests() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -355,7 +352,7 @@ public class CancelStreamedBodyTest implements HttpServerAdapters {
 
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         // HTTP/1.1
         HttpTestHandler h1_chunkHandler = new HTTPSlowHandler();
         httpTestServer = HttpTestServer.create(HTTP_1_1);
@@ -390,7 +387,7 @@ public class CancelStreamedBodyTest implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;

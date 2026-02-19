@@ -69,7 +69,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -78,26 +77,25 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ProxySelectorTest implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer httpTestServer;            // HTTP/1.1
-    HttpTestServer proxyHttpTestServer;       // HTTP/1.1
-    HttpTestServer authProxyHttpTestServer;   // HTTP/1.1
-    HttpTestServer http2TestServer;           // HTTP/2 ( h2c )
-    HttpTestServer httpsTestServer;           // HTTPS/1.1
-    HttpTestServer https2TestServer;          // HTTP/2 ( h2  )
-    DigestEchoServer.TunnelingProxy proxy;
-    DigestEchoServer.TunnelingProxy authproxy;
-    String httpURI;
-    String httpsURI;
-    String proxyHttpURI;
-    String http2URI;
-    String https2URI;
-    HttpClient client;
+    private static HttpTestServer httpTestServer;            // HTTP/1.1
+    private static HttpTestServer proxyHttpTestServer;       // HTTP/1.1
+    private static HttpTestServer authProxyHttpTestServer;   // HTTP/1.1
+    private static HttpTestServer http2TestServer;           // HTTP/2 ( h2c )
+    private static HttpTestServer httpsTestServer;           // HTTPS/1.1
+    private static HttpTestServer https2TestServer;          // HTTP/2 ( h2  )
+    private static DigestEchoServer.TunnelingProxy proxy;
+    private static DigestEchoServer.TunnelingProxy authproxy;
+    private static String httpURI;
+    private static String httpsURI;
+    private static String proxyHttpURI;
+    private static String http2URI;
+    private static String https2URI;
+    private static HttpClient client;
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     static final long SLEEP_AFTER_TEST = 0; // milliseconds
     static final int ITERATIONS = 3;
     static final Executor executor = new TestExecutor(Executors.newCachedThreadPool());
@@ -169,7 +167,7 @@ public class ProxySelectorTest implements HttpServerAdapters {
     static final TestStopper stopper = new TestStopper();
 
     @AfterAll
-    static final void printFailedTests() {
+    static void printFailedTests() {
         out.println("\n=========================");
         try {
             // Exceptions should already have been added to FAILURES
@@ -202,11 +200,10 @@ public class ProxySelectorTest implements HttpServerAdapters {
     static final int UNAUTHORIZED = 401;
     static final int PROXY_UNAUTHORIZED = 407;
     static final int HTTP_OK = 200;
-    static final String MESSAGE = "Unauthorized";
     enum Schemes {
         HTTP, HTTPS
     }
-    public Object[][] positive() {
+    public static Object[][] positive() {
         return new Object[][] {
                 { Schemes.HTTP,  HTTP_1_1, httpURI,   true},
                 { Schemes.HTTP,  HttpClient.Version.HTTP_2,   http2URI,  true},
@@ -255,7 +252,7 @@ public class ProxySelectorTest implements HttpServerAdapters {
         HttpRequest request = requestBuilder.build();
         out.println("Sending request: " + request.uri());
 
-        HttpResponse<T> response = null;
+        HttpResponse<T> response;
         if (async) {
             response = client.send(request, handler);
         } else {
@@ -320,7 +317,7 @@ public class ProxySelectorTest implements HttpServerAdapters {
     // -- Infrastructure
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         httpTestServer = HttpTestServer.create(HTTP_1_1);
         httpTestServer.addHandler(new PlainServerHandler("plain-server"), "/http1/");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/http1";
@@ -370,7 +367,7 @@ public class ProxySelectorTest implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         client = null;
         Thread.sleep(100);
         AssertionError fail = TRACKER.check(1500);
@@ -388,7 +385,7 @@ public class ProxySelectorTest implements HttpServerAdapters {
         }
     }
 
-    class TestProxySelector extends ProxySelector {
+    static final class TestProxySelector extends ProxySelector {
         @Override
         public List<Proxy> select(URI uri) {
             String path = uri.getPath();
@@ -427,11 +424,8 @@ public class ProxySelectorTest implements HttpServerAdapters {
             String path = t.getRequestURI().getPath();
             HttpTestRequestHeaders  reqh = t.getRequestHeaders();
             HttpTestResponseHeaders rsph = t.getResponseHeaders();
-
-            String xValue = serverType;
             rsph.addHeader("X-value", serverType);
 
-            t.getResponseHeaders().addHeader("X-value", xValue);
             byte[] body = "RESPONSE".getBytes(UTF_8);
             t.sendResponseHeaders(HTTP_OK, body.length);
             try (var out = t.getResponseBody()) {
@@ -453,14 +447,13 @@ public class ProxySelectorTest implements HttpServerAdapters {
             String path = t.getRequestURI().getPath();
             HttpTestResponseHeaders rsph = t.getResponseHeaders();
 
-            String xValue = serverType;
             String prefix = path.contains("/proxy/") ? "Proxy-" : "WWW-";
             int code = path.contains("/proxy/") ? PROXY_UNAUTHORIZED : UNAUTHORIZED;
             String resp = prefix + "Unauthorized";
             rsph.addHeader(prefix + "Authenticate", "Basic realm=\"earth\", charset=\"UTF-8\"");
 
             byte[] body = resp.getBytes(UTF_8);
-            t.getResponseHeaders().addHeader("X-value", xValue);
+            rsph.addHeader("X-value", serverType);
             t.sendResponseHeaders(code, body.length);
             try (var out = t.getResponseBody()) {
                 out.write(body);

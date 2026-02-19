@@ -52,7 +52,6 @@ import java.net.http.HttpOption.Http3DiscoveryMode;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -67,7 +66,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 
 import static java.lang.System.out;
@@ -85,8 +83,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -94,7 +90,6 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class CancelRequestTest implements HttpServerAdapters {
 
     private static final Random random = RandomFactory.getRandom();
@@ -102,19 +97,19 @@ public class CancelRequestTest implements HttpServerAdapters {
             = new ConcurrentHashMap<>();
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
-    HttpTestServer httpsTestServer;   // HTTPS/1.1
-    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    HttpTestServer h2h3TestServer;        // HTTP/3 ( h2 + h3 )
-    HttpTestServer h3TestServer;          // HTTP/3 ( h3 )
-    String httpURI;
-    String httpsURI;
-    String http2URI;
-    String https2URI;
-    String h2h3URI;
-    String h2h3Head;
-    String h3URI;
+    private static HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
+    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
+    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static HttpTestServer h2h3TestServer;        // HTTP/3 ( h2 + h3 )
+    private static HttpTestServer h3TestServer;          // HTTP/3 ( h3 )
+    private static String httpURI;
+    private static String httpsURI;
+    private static String http2URI;
+    private static String https2URI;
+    private static String h2h3URI;
+    private static String h2h3Head;
+    private static String h3URI;
 
     static final long SERVER_LATENCY = 75;
     static final int MAX_CLIENT_DELAY = 75;
@@ -135,8 +130,8 @@ public class CancelRequestTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -212,7 +207,7 @@ public class CancelRequestTest implements HttpServerAdapters {
         }
     }
 
-    private String[] uris() {
+    private static String[] uris() {
         return new String[] {
                 httpURI,
                 httpsURI,
@@ -223,7 +218,7 @@ public class CancelRequestTest implements HttpServerAdapters {
         };
     }
 
-    public Object[][] asyncurls() {
+    public static Object[][] asyncurls() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2 * 3][];
         //Object[][] result = new Object[uris.length][];
@@ -243,7 +238,7 @@ public class CancelRequestTest implements HttpServerAdapters {
         return result;
     }
 
-    public Object[][] alltests() {
+    public static Object[][] alltests() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         //Object[][] result = new Object[uris.length][];
@@ -683,7 +678,7 @@ public class CancelRequestTest implements HttpServerAdapters {
 
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         // HTTP/1.1
         HttpTestHandler h1_chunkHandler = new HTTPSlowHandler();
         httpTestServer = HttpTestServer.create(HTTP_1_1);
@@ -726,7 +721,7 @@ public class CancelRequestTest implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;

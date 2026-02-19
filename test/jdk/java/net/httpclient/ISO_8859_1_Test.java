@@ -79,8 +79,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -88,27 +86,23 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ISO_8859_1_Test implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    DummyServer http1DummyServer;
-    HttpTestServer http1TestServer;   // HTTP/1.1 ( http )
-    HttpTestServer https1TestServer;  // HTTPS/1.1 ( https  )
-    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    String http1Dummy;
-    String http1URI;
-    String https1URI;
-    String http2URI;
-    String https2URI;
-    String http3URI;
+    private static DummyServer http1DummyServer;
+    private static HttpTestServer http1TestServer;   // HTTP/1.1 ( http )
+    private static HttpTestServer https1TestServer;  // HTTPS/1.1 ( https  )
+    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    private static String http1Dummy;
+    private static String http1URI;
+    private static String https1URI;
+    private static String http2URI;
+    private static String https2URI;
+    private static String http3URI;
 
-    static final int RESPONSE_CODE = 200;
     static final int ITERATION_COUNT = 4;
-    static final Class<IllegalArgumentException> IAE = IllegalArgumentException.class;
-    static final Class<CompletionException> CE = CompletionException.class;
     // a shared executor helps reduce the amount of threads created by the test
     static final Executor executor = new TestExecutor(Executors.newCachedThreadPool());
     static final ConcurrentMap<String, Throwable> FAILURES = new ConcurrentHashMap<>();
@@ -124,8 +118,8 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -182,7 +176,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
     static final TestStopper stopper = new TestStopper();
 
     @AfterAll
-    static final void printFailedTests() {
+    static void printFailedTests() {
         out.println("\n=========================");
         try {
             out.printf("%n%sCreated %d servers and %d clients%n",
@@ -202,7 +196,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
         }
     }
 
-    private String[] uris() {
+    private static String[] uris() {
         return new String[] {
                 http3URI,
                 http1Dummy,
@@ -213,9 +207,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
         };
     }
 
-    static AtomicLong URICOUNT = new AtomicLong();
-
-    public Object[][] variants() {
+    public static Object[][] variants() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -264,7 +256,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
         }
     }
 
-    private static final Exception completionCause(CompletionException x) {
+    private static Exception completionCause(CompletionException x) {
         Throwable c = x;
         while (c  instanceof CompletionException
                 || c instanceof ExecutionException) {
@@ -335,8 +327,8 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
         static final InetSocketAddress LOOPBACK =
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         final ServerSocket socket;
-        final CopyOnWriteArrayList<Socket> accepted = new CopyOnWriteArrayList<Socket>();
-        final CompletableFuture<Void> done = new CompletableFuture();
+        final CopyOnWriteArrayList<Socket> accepted = new CopyOnWriteArrayList<>();
+        final CompletableFuture<Void> done = new CompletableFuture<>();
         volatile boolean closed;
         DummyServer() throws IOException  {
             socket = new ServerSocket();
@@ -387,11 +379,11 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
             }
         }
 
-        final void close(AutoCloseable toclose) {
+        void close(AutoCloseable toclose) {
             try { toclose.close(); } catch (Exception x) {};
         }
 
-        final public void close() {
+        public void close() {
             closed = true;
             close(socket);
             accepted.forEach(this::close);
@@ -411,7 +403,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         HttpServerAdapters.HttpTestHandler handler = new ISO88591Handler();
         InetSocketAddress loopback = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 
@@ -449,7 +441,7 @@ public class ISO_8859_1_Test implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;

@@ -65,7 +65,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -73,25 +72,24 @@ import org.junit.jupiter.api.extension.TestWatcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class ShortResponseBody {
 
-    Server closeImmediatelyServer;
-    Server closeImmediatelyHttpsServer;
-    Server variableLengthServer;
-    Server variableLengthHttpsServer;
-    Server fixedLengthServer;
+    private static Server closeImmediatelyServer;
+    private static Server closeImmediatelyHttpsServer;
+    private static Server variableLengthServer;
+    private static Server variableLengthHttpsServer;
+    private static Server fixedLengthServer;
 
-    String httpURIClsImed;
-    String httpsURIClsImed;
-    String httpURIVarLen;
-    String httpsURIVarLen;
-    String httpURIFixLen;
+    private static String httpURIClsImed;
+    private static String httpsURIClsImed;
+    private static String httpURIVarLen;
+    private static String httpsURIVarLen;
+    private static String httpURIFixLen;
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    SSLParameters sslParameters;
-    HttpClient client;
-    int numberOfRequests;
+    private static SSLParameters sslParameters;
+    protected static HttpClient client;
+    private static int numberOfRequests;
 
     static final int REQUESTS_PER_CLIENT = 10; // create new client every 10 requests
     static final long PAUSE_FOR_GC = 5; // 5ms to let gc work
@@ -105,7 +103,7 @@ public abstract class ShortResponseBody {
     static final AtomicLong reqnb = new AtomicLong();
 
     static final AtomicLong ids = new AtomicLong();
-    final ThreadFactory factory = new ThreadFactory() {
+    private static final ThreadFactory factory = new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
             Thread thread = new Thread(r,  "HttpClient-Worker-" + ids.incrementAndGet());
@@ -113,7 +111,7 @@ public abstract class ShortResponseBody {
             return thread;
         }
     };
-    final ExecutorService service = Executors.newCachedThreadPool(factory);
+    private static final ExecutorService service = Executors.newCachedThreadPool(factory);
     static final ConcurrentMap<String, Throwable> FAILURES = new ConcurrentHashMap<>();
     static final long start = System.nanoTime();
     public static String now() {
@@ -186,7 +184,7 @@ public abstract class ShortResponseBody {
         }
     }
 
-    public Object[][] sanity() {
+    public static Object[][] sanity() {
         return new Object[][]{
             { httpURIVarLen  + "?length=all" },
             { httpsURIVarLen + "?length=all" },
@@ -213,7 +211,7 @@ public abstract class ShortResponseBody {
                 .join();
     }
 
-    public Object[][] sanityBadRequest() {
+    public static Object[][] sanityBadRequest() {
         return new Object[][]{
                 { httpURIVarLen  }, // no query string
                 { httpsURIVarLen },
@@ -232,7 +230,7 @@ public abstract class ShortResponseBody {
         assertEquals("", response.body());
     }
 
-    public Object[][] variants() {
+    public static Object[][] variants() {
         String[][] cases = new String[][] {
             // The length query string is the total number of bytes in the reply,
             // including headers, before the server closes the connection. The
@@ -672,7 +670,7 @@ public abstract class ShortResponseBody {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         SSLContext.setDefault(sslContext);
 
         sslParameters = new SSLParameters();
@@ -699,7 +697,7 @@ public abstract class ShortResponseBody {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         closeImmediatelyServer.close();
         closeImmediatelyHttpsServer.close();
         variableLengthServer.close();

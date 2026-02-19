@@ -22,7 +22,7 @@
  */
 
 
-/**
+/*
  * This is not a test. Actual tests are implemented by concrete subclasses.
  * The abstract class AbstractThrowingPushPromises provides a base framework
  * to test what happens when push promise handlers and their
@@ -103,7 +103,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractThrowingPushPromises implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
@@ -192,14 +191,9 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
 
     @AfterAll
-    static final void printFailedTests() {
+    static void printFailedTests() {
         out.println("\n=========================");
         try {
-            // Exceptions should already have been added to FAILURES
-            // var failed = context.getFailedTests().getAllResults().stream()
-            //        .collect(Collectors.toMap(r -> name(r), ITestResult::getThrowable));
-            // FAILURES.putAll(failed);
-
             out.printf("%n%sCreated %d servers and %d clients%n",
                     now(), serverCount.get(), clientCount.get());
             if (FAILURES.isEmpty()) return;
@@ -338,7 +332,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
             HttpRequest req = request(uri);
 
             BodyHandler<Stream<String>> handler =
-                    new ThrowingBodyHandler((w) -> {},
+                    new ThrowingBodyHandler<>((w) -> {},
                                             BodyHandlers.ofLines());
             Map<HttpRequest, CompletableFuture<HttpResponse<Stream<String>>>> pushPromises =
                     new ConcurrentHashMap<>();
@@ -386,9 +380,9 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     // @Test(dataProvider = "variants")
-    protected void testThrowingAsStringImpl(String uri,
-                                     boolean sameClient,
-                                     Thrower thrower)
+    void testThrowingAsStringImpl(String uri,
+                                  boolean sameClient,
+                                  Thrower thrower)
             throws Exception
     {
         String test = format("testThrowingAsString(%s, %b, %s)",
@@ -398,7 +392,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     //@Test(dataProvider = "variants")
-    protected void testThrowingAsLinesImpl(String uri,
+    void testThrowingAsLinesImpl(String uri,
                                     boolean sameClient,
                                     Thrower thrower)
             throws Exception
@@ -410,9 +404,9 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     //@Test(dataProvider = "variants")
-    protected void testThrowingAsInputStreamImpl(String uri,
-                                          boolean sameClient,
-                                          Thrower thrower)
+    void testThrowingAsInputStreamImpl(String uri,
+                                       boolean sameClient,
+                                       Thrower thrower)
             throws Exception
     {
         String test = format("testThrowingAsInputStream(%s, %b, %s)",
@@ -423,7 +417,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
     private <T,U> void testThrowing(String name, String uri, boolean sameClient,
                                     Supplier<BodyHandler<T>> handlers,
-                                    Finisher finisher, Thrower thrower)
+                                    Finisher<T,U> finisher, Thrower thrower)
             throws Exception
     {
         out.printf("%n%s%s%n", now(), name);
@@ -437,7 +431,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
     private <T,U> void testThrowing(String uri, boolean sameClient,
                                     Supplier<BodyHandler<T>> handlers,
-                                    Finisher finisher, Thrower thrower)
+                                    Finisher<T,U> finisher, Thrower thrower)
             throws Exception
     {
         HttpClient client = null;
@@ -451,7 +445,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
             ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<T>>> promiseMap =
                     new ConcurrentHashMap<>();
             Supplier<BodyHandler<T>> throwing = () ->
-                    new ThrowingBodyHandler(where.select(thrower), handlers.get());
+                    new ThrowingBodyHandler<>(where.select(thrower), handlers.get());
             PushPromiseHandler<T> pushHandler = new ThrowingPromiseHandler<>(
                     where.select(thrower),
                     PushPromiseHandler.of((r) -> throwing.get(), promiseMap));
@@ -539,7 +533,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
         return check(w, reqURI, resp, thrower, promises, extractor);
     }
 
-    private final <T> List<String> check(Where w, URI reqURI,
+    private <T> List<String> check(Where w, URI reqURI,
                                  HttpResponse<T> resp,
                                  Thrower thrower,
                                  Map<HttpRequest, CompletableFuture<HttpResponse<T>>> promises,
@@ -696,7 +690,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
         public BodySubscriber<T> apply(HttpResponse.ResponseInfo rinfo) {
             throwing.accept(Where.BODY_HANDLER);
             BodySubscriber<T> subscriber = bodyHandler.apply(rinfo);
-            return new ThrowingBodySubscriber(throwing, subscriber);
+            return new ThrowingBodySubscriber<>(throwing, subscriber);
         }
     }
 

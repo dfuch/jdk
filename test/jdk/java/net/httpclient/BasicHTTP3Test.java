@@ -31,7 +31,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -59,9 +58,7 @@ import static java.net.http.HttpOption.Http3DiscoveryMode.ALT_SVC;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -82,7 +79,6 @@ import org.junit.jupiter.params.provider.MethodSource;
  *                     BasicHTTP3Test
  * @summary Basic HTTP/3 test
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BasicHTTP3Test implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
@@ -116,8 +112,8 @@ public class BasicHTTP3Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private volatile HttpClient sharedClient;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -174,7 +170,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
     static final TestStopper stopper = new TestStopper();
 
     @AfterAll
-    static final void printFailedTests() {
+    static void printFailedTests() {
         out.println("\n=========================");
         try {
             out.printf("%n%sCreated %d clients%n",
@@ -308,7 +304,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
         assertEquals(200, response.statusCode(), "second response status");
         assertEquals(Version.HTTP_3, response.version(), "second response version");
 
-        if (h3URI == h3mtlsURI) {
+        if (h3URI.equals(h3mtlsURI)) {
             assertNotNull(response.sslSession().get().getLocalCertificates());
         } else {
             assertNull(response.sslSession().get().getLocalCertificates());
@@ -363,7 +359,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         https2TestServer = HttpTestServer.create(HTTP_2, sslContext);
         https2TestServer.addHandler(new Handler(), "/https2/test/");
         https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/test/x";
@@ -381,7 +377,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
                 .enableH3AltServiceOnEphemeralPortWithVersion(QuicVersion.QUIC_V2, false);
         h3qv2TestServer = HttpTestServer.of(h2q2Server);
         h3qv2TestServer.addHandler(h3Handler, "/h3/testH3/");
-        h3URIQv2 = "https://" + h3qv2TestServer.serverAuthority() + "/h3/testH3/h3qv2";;
+        h3URIQv2 = "https://" + h3qv2TestServer.serverAuthority() + "/h3/testH3/h3qv2";
         assertTrue(h3qv2TestServer.canHandle(HTTP_2, Version.HTTP_3), "Server was expected" +
                 " to handle both HTTP2 and HTTP3, but doesn't");
 
@@ -390,7 +386,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
                 .enableH3AltServiceOnEphemeralPortWithVersion(QuicVersion.QUIC_V2, true);
         h3qv2CTestServer = HttpTestServer.of(h2q2CServer);
         h3qv2CTestServer.addHandler(h3Handler, "/h3/testH3/");
-        h3URIQv2C = "https://" + h3qv2CTestServer.serverAuthority() + "/h3/testH3/h3qv2c";;
+        h3URIQv2C = "https://" + h3qv2CTestServer.serverAuthority() + "/h3/testH3/h3qv2c";
         assertTrue(h3qv2CTestServer.canHandle(HTTP_2, Version.HTTP_3), "Server was expected" +
                 " to handle both HTTP2 and HTTP3, but doesn't");
 
@@ -433,7 +429,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         System.err.println("=======================================================");
         System.err.println("               Tearing down test");
         System.err.println("=======================================================");

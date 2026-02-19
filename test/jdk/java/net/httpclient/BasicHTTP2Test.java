@@ -66,21 +66,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BasicHTTP2Test implements HttpServerAdapters {
 
     private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    String https2URI;
-    DatagramSocket udp;
+    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    private static String https2URI;
+    private static DatagramSocket udp;
 
     // a shared executor helps reduce the amount of threads created by the test
     static final Executor executor = new TestExecutor(Executors.newCachedThreadPool());
@@ -97,7 +94,7 @@ public class BasicHTTP2Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -221,7 +218,7 @@ public class BasicHTTP2Test implements HttpServerAdapters {
     }
 
     @BeforeAll
-    public void setup() throws Exception {
+    public static void setup() throws Exception {
         // HTTP/2
         HttpTestHandler handler = new Handler();
 
@@ -242,7 +239,7 @@ public class BasicHTTP2Test implements HttpServerAdapters {
     }
 
     @AfterAll
-    public void teardown() throws Exception {
+    public static void teardown() throws Exception {
         Thread.sleep(100);
         AssertionError fail = TRACKER.check(500);
         try {
