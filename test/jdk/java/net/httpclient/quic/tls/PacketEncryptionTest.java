@@ -208,7 +208,7 @@ public class PacketEncryptionTest {
     }
 
     @Test
-    public void testDecryptClientInitialPacketBadTag() throws Exception {
+    public void testDecryptClientInitialPacketBadTag() {
         Assertions.assertThrows(AEADBadTagException.class, () -> {
             QuicTLSEngine serverEngine = getQuicV1Engine(SSLContext.getDefault(), false);
             ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
@@ -317,7 +317,7 @@ public class PacketEncryptionTest {
     }
 
     @Test
-    public void testVerifyBadRetry() throws NoSuchAlgorithmException, AEADBadTagException, QuicTransportException {
+    public void testVerifyBadRetry() {
         Assertions.assertThrows(AEADBadTagException.class, () -> {
             QuicTLSEngine clientEngine = getQuicV1Engine(SSLContext.getDefault(), true);
             ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
@@ -399,7 +399,7 @@ public class PacketEncryptionTest {
     }
 
     @Test
-    public void testDecryptChaChaBadTag() throws Exception {
+    public void testDecryptChaChaBadTag() {
         Assertions.assertThrows(AEADBadTagException.class, () -> {
             QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV1Engine(SSLContext.getDefault(), false);
             // mark the TLS handshake as FINISHED
