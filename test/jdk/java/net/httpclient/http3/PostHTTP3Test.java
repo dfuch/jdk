@@ -363,8 +363,8 @@ public class PostHTTP3Test implements HttpServerAdapters {
                 out.println("Checking response: " + u);
                 var response = e.getValue().get();
                 out.println("Response is: " + response + ", [version: " + response.version() + "]");
-                assertEquals(200, response.statusCode(),"status for " + u);
-                assertEquals(BODY, response.body(),"body for " + u);
+                assertEquals(200, response.statusCode(), "status for " + u);
+                assertEquals(BODY, response.body(), "body for " + u);
                 if (expectH3) {
                     assertEquals(HTTP_3, response.version(), "version for " + u);
                 }
