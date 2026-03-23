@@ -41,7 +41,7 @@
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
  */
 /*
- * @test id=preferIpV6Loopback
+ * @test id=preferIPv6Loopback
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
  *          maximum size on macOS, using a dual socket and the loopback
@@ -51,7 +51,7 @@
  * @run testng/othervm -Dtest.preferLoopback=true SendReceiveMaxSize
  */
 /*
- * @test id=preferIpV4Loopback
+ * @test id=preferIPv4Loopback
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
  *          maximum size on macOS, using an IPv4 only socket and the
