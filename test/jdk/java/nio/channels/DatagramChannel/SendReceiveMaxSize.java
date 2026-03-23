@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,20 @@
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm SendReceiveMaxSize
- * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
  */
 /*
- * @test id=preferLoopback
+ * @test id=preferIPv4Stack
+ * @bug 8239355 8242885 8240901
+ * @key randomness
+ * @summary Check that it is possible to send and receive datagrams of
+ *          maximum size on macOS.
+ * @library /test/lib
+ * @build jdk.test.lib.net.IPSupport
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
+ * @run testng/othervm SendReceiveMaxSize
+ */
+/*
+ * @test id=preferIpV6Loopback
  * @bug 8239355 8242885 8240901
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
@@ -41,6 +51,15 @@
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Dtest.preferLoopback=true SendReceiveMaxSize
+ */
+/*
+ * @test id=preferIpV4Loopback
+ * @bug 8239355 8242885 8240901
+ * @key randomness
+ * @summary Check that it is possible to send and receive datagrams of
+ *          maximum size on macOS.
+ * @library /test/lib
+ * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Dtest.preferLoopback=true -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
  */
 
