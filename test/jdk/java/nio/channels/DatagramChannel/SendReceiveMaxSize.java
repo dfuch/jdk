@@ -59,7 +59,6 @@ import static jdk.test.lib.net.IPSupport.hasIPv4;
 import static jdk.test.lib.net.IPSupport.hasIPv6;
 import static jdk.test.lib.net.IPSupport.preferIPv4Stack;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -82,7 +81,7 @@ public class SendReceiveMaxSize {
         IPSupport.throwSkippedExceptionIfNonOperational();
     }
 
-    public static List<Arguments> invariants() throws IOException {
+    public static List<Arguments> testCases() throws IOException {
         var testcases = new ArrayList<Arguments>();
         var nc = NetworkConfiguration.probe();
         if (hasIPv4()) {
@@ -121,7 +120,7 @@ public class SendReceiveMaxSize {
     }
 
     @ParameterizedTest
-    @MethodSource("invariants")
+    @MethodSource("testCases")
     public void testGetOption(DatagramChannelSupplier supplier, int capacity, InetAddress host)
             throws IOException {
         if (Platform.isOSX()) {
@@ -132,7 +131,7 @@ public class SendReceiveMaxSize {
     }
 
     @ParameterizedTest
-    @MethodSource("invariants")
+    @MethodSource("testCases")
     public void testSendReceiveMaxSize(DatagramChannelSupplier supplier, int capacity, InetAddress host)
             throws IOException {
         try (var receiver = DatagramChannel.open()) {

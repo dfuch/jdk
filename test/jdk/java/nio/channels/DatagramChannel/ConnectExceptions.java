@@ -29,6 +29,7 @@
  */
 
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -37,20 +38,19 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectExceptions {
-    static DatagramChannel sndChannel;
-    static DatagramChannel rcvChannel;
-    static InetSocketAddress sender;
-    static InetSocketAddress receiver;
+    private DatagramChannel sndChannel;
+    private DatagramChannel rcvChannel;
+    private InetSocketAddress sender;
+    private InetSocketAddress receiver;
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeEach
+    public void setup() throws Exception {
         sndChannel = DatagramChannel.open();
         sndChannel.bind(null);
         InetAddress address = InetAddress.getLocalHost();
@@ -66,35 +66,40 @@ public class ConnectExceptions {
             rcvChannel.socket().getLocalPort());
     }
 
+    @AfterEach
+    public void cleanup() throws Exception {
+        rcvChannel.close();
+        sndChannel.close();
+    }
+
     @Test
-    public void unsupportedAddressTypeException() {
+    public void unsupportedAddressTypeException() throws IOException {
+        rcvChannel.connect(sender);
         assertThrows(UnsupportedAddressTypeException.class, () -> {
-            rcvChannel.connect(sender);
             sndChannel.connect(new SocketAddress() {});
         });
     }
 
     @Test
-    public void unresolvedAddressException() {
+    public void unresolvedAddressException() throws IOException {
+        String host = TestUtil.UNRESOLVABLE_HOST;
+        InetSocketAddress unresolvable = new InetSocketAddress (host, 37);
         assertThrows(UnresolvedAddressException.class, () -> {
-            String host = TestUtil.UNRESOLVABLE_HOST;
-            InetSocketAddress unresolvable = new InetSocketAddress (host, 37);
+            sndChannel.connect(unresolvable);
+        });
+        sndChannel.connect(receiver);
+        assertThrows(UnresolvedAddressException.class, () -> {
             sndChannel.connect(unresolvable);
         });
     }
 
     @Test
-    public void alreadyConnectedException() {
+    public void alreadyConnectedException() throws IOException {
+        sndChannel.connect(receiver);
         assertThrows(AlreadyConnectedException.class, () -> {
-            sndChannel.connect(receiver);
             InetSocketAddress random = new InetSocketAddress(0);
             sndChannel.connect(random);
         });
     }
 
-    @AfterAll
-    public static void cleanup() throws Exception {
-        rcvChannel.close();
-        sndChannel.close();
-    }
 }

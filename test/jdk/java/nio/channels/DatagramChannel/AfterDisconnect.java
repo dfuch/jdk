@@ -188,7 +188,7 @@ public class AfterDisconnect {
         }
 
         // check socket options have not changed
-        assertEquals(options(dc), map);
+        assertEquals(map, options(dc));
     }
 
     /**

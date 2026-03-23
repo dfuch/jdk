@@ -40,6 +40,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
@@ -80,21 +81,23 @@ public class SendPortZero {
         }
     }
 
-    public static List<DatagramChannel> variants() {
-        return channels;
-    }
-
-    @ParameterizedTest
-    @MethodSource("variants")
-    public void testChannelSend(DatagramChannel dc) {
-        assertThrows(SE, () -> dc.send(buf, loopbackZeroAddr));
-        assertThrows(SE, () -> dc.send(buf, wildcardZeroAddr));
-    }
-
     @AfterAll
     public static void tearDown() throws IOException {
         for(DatagramChannel ch : channels) {
             ch.close();
         }
     }
+
+    public static List<DatagramChannel> channels() {
+        return channels;
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    public void testChannelSend(DatagramChannel dc) {
+        assertTrue(dc.isOpen());
+        assertThrows(SE, () -> dc.send(buf, loopbackZeroAddr));
+        assertThrows(SE, () -> dc.send(buf, wildcardZeroAddr));
+    }
+
 }

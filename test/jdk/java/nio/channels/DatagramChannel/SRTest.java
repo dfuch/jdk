@@ -23,7 +23,7 @@
 
 /* @test
  * @summary Test DatagramChannel's send and receive methods
- * @run junit/othervm/timeout=20 SRTest
+ * @run junit/othervm SRTest
  */
 
 import java.io.IOException;

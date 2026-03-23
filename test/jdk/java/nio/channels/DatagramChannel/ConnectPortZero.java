@@ -39,7 +39,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
@@ -77,21 +80,24 @@ public class ConnectPortZero {
         }
     }
 
-    public static List<DatagramChannel> variants() {
-        return channels;
-    }
-
-    @ParameterizedTest
-    @MethodSource("variants")
-    public void testChannelConnect(DatagramChannel dc) {
-        assertThrows(SE, () -> dc.connect(loopbackZeroAddr));
-        assertThrows(SE, () -> dc.connect(wildcardZeroAddr));
-    }
-
     @AfterAll
     public static void tearDown() throws IOException {
         for(DatagramChannel ch : channels) {
             ch.close();
         }
     }
+
+    public static List<DatagramChannel> channels() {
+        return channels;
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    public void testChannelConnect(DatagramChannel dc) {
+        assertTrue(dc.isOpen());
+        assertFalse(dc.isConnected());
+        assertThrows(SE, () -> dc.connect(loopbackZeroAddr));
+        assertThrows(SE, () -> dc.connect(wildcardZeroAddr));
+    }
+
 }
