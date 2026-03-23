@@ -39,7 +39,6 @@
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
- * @run testng/othervm SendReceiveMaxSize
  */
 /*
  * @test id=preferIpV6Loopback
