@@ -22,7 +22,7 @@
  */
 
 /*
- * @test
+ * @test id=default
  * @bug 8239355 8242885 8240901
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
@@ -31,6 +31,17 @@
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm SendReceiveMaxSize
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
+ */
+/*
+ * @test id=preferLoopback
+ * @bug 8239355 8242885 8240901
+ * @key randomness
+ * @summary Check that it is possible to send and receive datagrams of
+ *          maximum size on macOS.
+ * @library /test/lib
+ * @build jdk.test.lib.net.IPSupport
+ * @run testng/othervm -Dtest.preferLoopback=true SendReceiveMaxSize
+ * @run testng/othervm -Dtest.preferLoopback=true -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
  */
 
 import jdk.test.lib.RandomFactory;
@@ -68,6 +79,7 @@ import static org.testng.Assert.assertTrue;
 public class SendReceiveMaxSize {
     private final static Class<IOException> IOE = IOException.class;
     private final static Random random = RandomFactory.getRandom();
+    private final static boolean PREFER_LOOPBACK = Boolean.getBoolean("test.preferLoopback");
 
     public interface DatagramChannelSupplier {
         DatagramChannel open() throws IOException;
@@ -83,11 +95,14 @@ public class SendReceiveMaxSize {
     public Object[][] invariants() throws IOException {
         var testcases = new ArrayList<Object[]>();
         var nc = NetworkConfiguration.probe();
+        var ipv4Loopback = (Inet4Address) InetAddress.getByName("127.0.0.1");
+        var ipv6Loopback = (Inet6Address) InetAddress.getByName("::1");
         if (hasIPv4()) {
-            InetAddress IPv4Addr = nc.ip4Addresses()
+            InetAddress IPv4Addr = PREFER_LOOPBACK ? ipv4Loopback
+                    : nc.ip4Addresses()
                     .filter(Predicate.not(InetAddress::isLoopbackAddress))
                     .findFirst()
-                    .orElse((Inet4Address) InetAddress.getByName("127.0.0.1"));
+                    .orElse(ipv4Loopback);
             testcases.add(new Object[]{
                     supplier(() -> DatagramChannel.open()),
                     IPSupport.getMaxUDPSendBufSizeIPv4(),
@@ -100,10 +115,11 @@ public class SendReceiveMaxSize {
             });
         }
         if (!preferIPv4Stack() && hasIPv6()) {
-            InetAddress IPv6Addr = nc.ip6Addresses()
+            InetAddress IPv6Addr = PREFER_LOOPBACK ? ipv6Loopback
+                    : nc.ip6Addresses()
                     .filter(Predicate.not(InetAddress::isLoopbackAddress))
                     .findFirst()
-                    .orElse((Inet6Address) InetAddress.getByName("::1"));
+                    .orElse(ipv6Loopback);
             testcases.add(new Object[]{
                     supplier(() -> DatagramChannel.open()),
                     IPSupport.getMaxUDPSendBufSizeIPv6(),
