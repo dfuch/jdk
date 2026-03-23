@@ -33,10 +33,9 @@
  */
 /*
  * @test id=preferIPv4Stack
- * @bug 8239355 8242885 8240901
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
- *          maximum size on macOS.
+ *          maximum size on macOS, using an IPv4 only socket.
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
@@ -44,20 +43,20 @@
  */
 /*
  * @test id=preferIpV6Loopback
- * @bug 8239355 8242885 8240901
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
- *          maximum size on macOS.
+ *          maximum size on macOS, using a dual socket and the loopback
+ *          interface.
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Dtest.preferLoopback=true SendReceiveMaxSize
  */
 /*
  * @test id=preferIpV4Loopback
- * @bug 8239355 8242885 8240901
  * @key randomness
  * @summary Check that it is possible to send and receive datagrams of
- *          maximum size on macOS.
+ *          maximum size on macOS, using an IPv4 only socket and the
+ *          loopback interface
  * @library /test/lib
  * @build jdk.test.lib.net.IPSupport
  * @run testng/othervm -Dtest.preferLoopback=true -Djava.net.preferIPv4Stack=true SendReceiveMaxSize
@@ -67,7 +66,6 @@ import jdk.test.lib.RandomFactory;
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.Platform;
 import jdk.test.lib.net.IPSupport;
-import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
