@@ -133,7 +133,7 @@ public class SendReceiveMaxSize {
             IPSupport.throwSkippedExceptionIfNonOperational();
         } catch (SkippedException skip) {
             // throws the appropriate TestNG SkipException
-            throw new SkipException(skip.getMessage());
+            throw new SkipException(skip.getMessage(), skip);
         }
         HOST_ADDR = PREFER_LOOPBACK ? InetAddress.getLoopbackAddress() : InetAddress.getLocalHost();
         BUF_LIMIT = (HOST_ADDR instanceof Inet6Address) ? IPV6_SNDBUF : IPV4_SNDBUF;
