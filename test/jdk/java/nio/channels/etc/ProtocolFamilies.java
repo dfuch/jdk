@@ -23,6 +23,8 @@
 
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
+
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -38,6 +40,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.out;
 import static java.net.StandardProtocolFamily.INET;
@@ -52,6 +55,8 @@ import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /*
@@ -91,6 +96,53 @@ public class ProtocolFamilies {
     static final Class<UnsupportedAddressTypeException> UATE = UnsupportedAddressTypeException.class;
     static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
 
+    @FunctionalInterface
+    interface ChannelFactory<T extends Closeable> {
+        T open() throws IOException;
+    }
+
+    /**
+     * If {@code expectedException} is non-null, asserts that the {@link ChannelFactory#open()}
+     * method throws the expected exception. Otherwise, asserts that the
+     * {@link ChannelFactory#open()} method does not throw.
+     * This method ensure that the closeable object returned by the {@link ChannelFactory#open()}
+     * method is always closed if {@code open} does not throw.
+     * @param expectedException the expected exception, or {@code null} if no exception is
+     *                          expected
+     * @param factory a factory method that produces a {@link Closeable} object
+     * @param <T> the concrete object type created by the factory
+     */
+    private static <T extends Closeable> void assertOpenAndClose(Class<? extends Throwable> expectedException,
+                                                                 ChannelFactory<T> factory)
+    {
+        final AtomicReference<Closeable> sc = new AtomicReference<>();
+        try {
+            if (expectedException != null) {
+                assertThrows(expectedException, () -> sc.set(factory.open()));
+            } else {
+                assertDoesNotThrow(() -> sc.set(factory.open()));
+            }
+        } catch (Throwable t) {
+            // test failed, ensure sc is closed
+            try {
+                close(sc.get());
+            } catch (Throwable cx) {
+                t.addSuppressed(cx);
+            }
+            // propagate the original failure
+            throw t;
+        }
+        // test passed, ensure sc is closed
+        assertDoesNotThrow(() -> close(sc.get()));
+    }
+
+
+    private static void close(Closeable sc) throws IOException {
+        if (sc != null) sc.close();
+    }
+
+
+
     public static List<Arguments> open() {
         if (hasIPv6 && !preferIPv4) {
             return List.of(
@@ -109,63 +161,24 @@ public class ProtocolFamilies {
     @MethodSource("open")
     public void scOpen(StandardProtocolFamily family,
                        Class<? extends Exception> expectedException)
-        throws Throwable
     {
-        SocketChannel sc = null;
-        try {
-            if (expectedException == UOE) {
-                try {
-                    sc = openSC(family);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                sc = openSC(family);
-            }
-        } finally {
-            if (sc != null)
-                sc.close();
-        }
+        assertOpenAndClose(expectedException, () -> openSC(family));
     }
 
     @ParameterizedTest
     @MethodSource("open")
     public void sscOpen(StandardProtocolFamily family,
                         Class<? extends Exception> expectedException)
-        throws Throwable
     {
-        ServerSocketChannel ssc = null;
-        try {
-            if (expectedException == UOE) {
-                try {
-                    ssc = openSSC(family);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                openSSC(family);
-            }
-        } finally {
-            if (ssc != null)
-                ssc.close();
-        }
+        assertOpenAndClose(expectedException, () -> openSSC(family));
     }
 
     @ParameterizedTest
     @MethodSource("open")
     public void dcOpen(StandardProtocolFamily family,
                        Class<? extends Exception> expectedException)
-        throws Throwable
     {
-        DatagramChannel dc = null;
-        try {
-            if (expectedException == UOE) {
-                try {
-                    dc = openDC(family);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                openDC(family);
-            }
-        } finally {
-            if (dc != null)
-                dc.close();
-        }
+        assertOpenAndClose(expectedException, () -> openDC(family));
     }
 
     public static List<Arguments> openBind() {
@@ -206,8 +219,8 @@ public class ProtocolFamilies {
         try (SocketChannel sc = openSC(ofamily)) {
             SocketAddress addr = getSocketAddress(bfamily);
             Executable bindOp = () -> sc.bind(addr);
-                if (expectedException == null)
-                    bindOp.execute();
+            if (expectedException == null)
+                bindOp.execute();
             else
                 assertThrows(expectedException, bindOp);
         }
@@ -304,13 +317,13 @@ public class ProtocolFamilies {
     // Tests null handling
     @Test
     public void testNulls() {
-        assertThrows(NPE, () -> SocketChannel.open((ProtocolFamily) null));
-        assertThrows(NPE, () -> ServerSocketChannel.open(null));
-        assertThrows(NPE, () -> DatagramChannel.open(null));
+        assertOpenAndClose(NPE, () -> SocketChannel.open((ProtocolFamily) null));
+        assertOpenAndClose(NPE, () -> ServerSocketChannel.open(null));
+        assertOpenAndClose(NPE, () -> DatagramChannel.open(null));
 
-        assertThrows(NPE, () -> SelectorProvider.provider().openSocketChannel(null));
-        assertThrows(NPE, () -> SelectorProvider.provider().openServerSocketChannel(null));
-        assertThrows(NPE, () -> SelectorProvider.provider().openDatagramChannel(null));
+        assertOpenAndClose(NPE, () -> SelectorProvider.provider().openSocketChannel(null));
+        assertOpenAndClose(NPE, () -> SelectorProvider.provider().openServerSocketChannel(null));
+        assertOpenAndClose(NPE, () -> SelectorProvider.provider().openDatagramChannel(null));
     }
 
     static final ProtocolFamily BAD_PF = () -> "BAD_PROTOCOL_FAMILY";
@@ -318,13 +331,13 @@ public class ProtocolFamilies {
     // Tests UOE handling
     @Test
     public void testUoe() {
-        assertThrows(UOE, () -> SocketChannel.open(BAD_PF));
-        assertThrows(UOE, () -> ServerSocketChannel.open(BAD_PF));
-        assertThrows(UOE, () -> DatagramChannel.open(BAD_PF));
+        assertOpenAndClose(UOE, () -> SocketChannel.open(BAD_PF));
+        assertOpenAndClose(UOE, () -> ServerSocketChannel.open(BAD_PF));
+        assertOpenAndClose(UOE, () -> DatagramChannel.open(BAD_PF));
 
-        assertThrows(UOE, () -> SelectorProvider.provider().openSocketChannel(BAD_PF));
-        assertThrows(UOE, () -> SelectorProvider.provider().openServerSocketChannel(BAD_PF));
-        assertThrows(UOE, () -> SelectorProvider.provider().openDatagramChannel(BAD_PF));
+        assertOpenAndClose(UOE, () -> SelectorProvider.provider().openSocketChannel(BAD_PF));
+        assertOpenAndClose(UOE, () -> SelectorProvider.provider().openServerSocketChannel(BAD_PF));
+        assertOpenAndClose(UOE, () -> SelectorProvider.provider().openDatagramChannel(BAD_PF));
     }
 
     // Helper methods

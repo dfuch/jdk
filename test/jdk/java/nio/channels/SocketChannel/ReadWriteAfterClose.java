@@ -69,7 +69,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer bufWrite = ByteBuffer.allocate(bufCapacity);
         Throwable ex = assertThrows(CCE, () -> sc.write(bufWrite));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     @Test
@@ -78,7 +78,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer[] bufArrayWrite = allocateBufArray();
         Throwable ex = assertThrows(CCE, () -> sc.write(bufArrayWrite));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     @Test
@@ -87,7 +87,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer[] bufArrayWrite = allocateBufArray();
         Throwable ex = assertThrows(CCE, () -> sc.write(bufArrayWrite, 0, bufArraySize));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     @Test
@@ -96,7 +96,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer dst = ByteBuffer.allocate(bufCapacity);
         Throwable ex = assertThrows(CCE, () -> sc.read(dst));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     @Test
@@ -105,7 +105,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer[] dstArray = allocateBufArray();
         Throwable ex = assertThrows(CCE, () -> sc.read(dstArray));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     @Test
@@ -114,7 +114,7 @@ public class ReadWriteAfterClose {
         sc.close();
         ByteBuffer[] dstArray = allocateBufArray();
         Throwable ex = assertThrows(CCE, () -> sc.read(dstArray, 0, bufArraySize));
-        assertEquals(CCE, ex.getClass());
+        assertSame(CCE, ex.getClass());
     }
 
     public ByteBuffer[] allocateBufArray() {
