@@ -770,6 +770,9 @@ public class PacketSpaceManagerTest {
             }
         }
 
+        // Sends a trivial INITIAL packet, with a CRYPTO frame containing
+        // a payload of length 1 for the provided offset. If ackFrameToSend
+        // is not null it will be included in the packet.
         public List<QuicFrame> sendPacket(long offset, AckFrame ackFrameToSend, Packet packet, long largestReceivedAckedPN) {
             // add a crypto frame and build the packet
             CryptoFrame crypto = new CryptoFrame(offset, 1,
@@ -786,6 +789,7 @@ public class PacketSpaceManagerTest {
             manager.packetSent(newPacket, -1, packet.packetNumber);
             return frames;
         }
+
         /**
          * Drives the test by pretending to emit each packet in order,
          * then pretending to receive ack frames (as soon as possible
@@ -1177,7 +1181,8 @@ public class PacketSpaceManagerTest {
         for (Runnable task : tasks) {
             task.run();
         }
-        driver.manager.processAckFrame(new AckFrameBuilder().addAck(1).addAck(2).build());
+        driver.manager.processAckFrame(new AckFrameBuilder()
+                .addAck(1).addAck(2).build());
         driver.run();
         driver.check();
     }
