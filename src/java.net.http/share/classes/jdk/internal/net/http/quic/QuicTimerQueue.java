@@ -116,33 +116,8 @@ public final class QuicTimerQueue {
      * @param event an event to be scheduled
      */
     public void offer(QuicTimedEvent event) {
-        if (event instanceof Marker marker)
-            throw new IllegalArgumentException(marker.name());
-        assert QuicTimedEvent.COMPARATOR.compare(event, FLOOR) > 0;
-        assert QuicTimedEvent.COMPARATOR.compare(event, CEILING) < 0;
-        Deadline deadline = event.deadline();
-        rescheduled.add(event);
-        scheduled(deadline);
         if (debug.on()) debug.log("QuicTimerQueue: event %s offered", event);
-        if (notify(deadline)) {
-            if (debug.on()) debug.log("QuicTimerQueue: event %s will be rescheduled", event);
-            if (Log.quicTimer()) {
-                var now = debugNow();
-                Log.logQuic(String.format("%s: QuicTimerQueue: event %s will be scheduled" +
-                                " at %s (returned deadline: %s, nextDeadline: %s)",
-                        Thread.currentThread().getName(), event, d(now, deadline),
-                        d(now, returnedDeadline), d(now, nextDeadline())));
-            }
-            notifier.run();
-        } else {
-            if (Log.quicTimer()) {
-                var now = debugNow();
-                Log.logQuic(String.format("%s: QuicTimerQueue: event %s will not be scheduled" +
-                                " at %s (returned deadline: %s, nextDeadline: %s)",
-                        Thread.currentThread().getName(), event, d(now, deadline),
-                        d(now, returnedDeadline), d(now, nextDeadline())));
-            }
-        }
+        reschedule(event, event.deadline());
     }
 
     /**
